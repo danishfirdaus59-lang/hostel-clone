@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; URL=Hostel_pass.html"/></head><body>Redirecting to <a href="Hostel_pass.html">Hostel_pass.html</a>
+<!-- Assistant: home-icon click fixer -->
+<script>
+(function(){
+  function tryAttach(){
+    var targetHref = 'Home_StudentDashboard.html';
+    // candidate selectors that might represent the home icon anchor or button
+    var selectors = [
+      'a#home', 'a#homeBtn', 'a#aHome', 'a[aria-label*="Home"]', 'a[title*="Home"]',
+      'a[href*="Home"]', 'a .home-icon', '.home-icon a', '.home', '.icon-home', '.nav-home a'
+    ];
+    // Also try to find an <svg> or <img> that looks like home and attach to its parent anchor
+    var svgCandidates = Array.from(document.querySelectorAll('svg, img')).filter(function(el){
+      var cls = (el.className && el.className.baseVal) || (el.className || '');
+      return /home|house|house-icon|icon-home/i.test(cls) || /home/i.test(el.getAttribute('aria-label')||'') || /home/i.test(el.getAttribute('title')||'');
+    });
+    // try selectors first
+    for(var sel of selectors){
+      var el = document.querySelector(sel);
+      if(el){
+        // if selector matches inner element, get anchor parent
+        var anchor = el.tagName.toLowerCase()==='a' ? el : el.closest('a');
+        if(anchor){
+          anchor.setAttribute('href', targetHref);
+          anchor.addEventListener('click', function(e){ /* let browser follow link */ });
+          return true;
+        }
+      }
+    }
+    // try anchors that contain a small svg path that looks like house (path with d containing 'M' etc) - simpler: anchors with small dimensions near top
+    var anchors = Array.from(document.querySelectorAll('a'));
+    for(var a of anchors){
+      var inner = a.innerText || '';
+      if(/home|dashboard/i.test(inner) && !a.getAttribute('href')){
+        a.setAttribute('href', targetHref);
+        return true;
+      }
+      // if anchor contains an svg element with small viewBox, assume it's the home icon
+      var svg = a.querySelector('svg');
+      if(svg){
+        a.setAttribute('href', targetHref);
+        return true;
+      }
+      var img = a.querySelector('img');
+      if(img && /home|house/i.test(img.alt||'')){
+        a.setAttribute('href', targetHref);
+        return true;
+      }
+    }
+    // fallback: attach a delegated click to document to detect clicks on elements that look like home icon
+    document.addEventListener('click', function(ev){
+      var el = ev.target;
+      for(var i=0;i<6 && el;i++){ // climb up few levels
+        if(el.tagName && el.tagName.toLowerCase()==='a' && (el.getAttribute('href')||'').trim()!='') return;
+        var cls = el.className && (el.className.baseVal||el.className) || '';
+        if(/home|house|icon-home|home-icon|nav-home/i.test(cls)){
+          ev.preventDefault();
+          window.location.href = targetHref;
+          return;
+        }
+        el = el.parentElement;
+      }
+    }, true);
+    return false;
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', tryAttach);
+  } else tryAttach();
+})();
+</script>
+<!-- End assistant home-icon click fixer -->
+
+<!-- Assistant: ensure profile links navigate to CUIMS_Profile.html -->
+<script>
+(function(){
+  const PROFILE = 'CUIMS_Profile.html';
+  function bindProfileAnchors(root){
+    try{
+      var anchors = Array.from((root||document).querySelectorAll('a'));
+      anchors.forEach(function(a){
+        try{
+          var txt = (a.textContent || a.innerText || '').trim();
+          if(/^\s*my\s*profile\s*$/i.test(txt) || (/profile/i.test(txt) && !/hostel/i.test(txt) && a.closest('.uims-sidebar')) ){
+            a.setAttribute('href', PROFILE);
+            a.addEventListener('click', function(ev){
+              // allow normal navigate but ensure sidebar closes if open
+              try{ var sb = document.querySelector('.uims-sidebar')||document.querySelector('.sidebar')||document.querySelector('#sidebar'); if(sb) sb.classList.remove('open'); }catch(e){}
+              // navigate
+              // small delay to allow sidebar close animation
+              setTimeout(function(){ window.location.href = PROFILE; }, 50);
+              ev.preventDefault();
+            }, {passive:false});
+          }
+        }catch(e){}
+      });
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    bindProfileAnchors(document);
+    // observe additions (in case sidebar is injected later)
+    var mo = new MutationObserver(function(muts){
+      binds = document.querySelectorAll('.uims-sidebar, .sidebar, #sidebar');
+      if(binds.length){
+        binds.forEach(b=>bindProfileAnchors(b));
+        mo.disconnect();
+      }
+    });
+    mo.observe(document.documentElement || document.body, {childList:true, subtree:true});
+  });
+})();
+</script>
+<!-- End profile anchors binder -->
+
+<!-- Assistant: hostel reload handler (fresh insertion) -->
+<script>
+(function(){
+  const HOSTEL = 'Hostel_pass.html';
+
+  function bindHostelLinks(root){
+    try{
+      var links = Array.from((root||document).querySelectorAll('a'));
+      links.forEach(function(a){
+        try{
+          var txt = (a.textContent||'').trim();
+          if(/hostel\s*leave/i.test(txt)){
+            // remove previously attached handlers by cloning
+            var newA = a.cloneNode(true);
+            newA.setAttribute('href', HOSTEL);
+            newA.addEventListener('click', function(ev){
+              ev.preventDefault();
+              try{ var sb = document.querySelector('.uims-sidebar')||document.querySelector('.sidebar')||document.querySelector('#sidebar'); if(sb) sb.classList.remove('open'); }catch(e){}
+              // force reload even if already on hostel page
+              window.location.href = HOSTEL + '?t=' + Date.now();
+            }, {passive:false});
+            a.parentNode.replaceChild(newA, a);
+          }
+        }catch(e){}
+      });
+    }catch(e){}
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    bindHostelLinks(document);
+    var mo = new MutationObserver(function(){
+      var sb = document.querySelector('.uims-sidebar, .sidebar, #sidebar');
+      if(sb){
+        bindHostelLinks(sb);
+      }
+    });
+    mo.observe(document.documentElement || document.body, {childList:true, subtree:true});
+  });
+})();
+</script>
+<!-- End hostel reload handler -->
+</body></html>
